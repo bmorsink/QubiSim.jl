@@ -65,6 +65,7 @@ export qpeGate!, createNQubitOperationQPE, createNQubitQPEQuantumCircuit
 export probeMeasureOutcome, probeMeasureProbability, probeStateProbability, probeStateMultiBlochVector
 
 using LinearAlgebra, PlotlyJS, StatsBase
+
 import Base: broadcastable
 
 ######################
