@@ -1,7 +1,7 @@
 name = "QubiSim"
 uuid = "3f823c38-d010-4086-b4dc-b61855312ec9"
 authors = ["Dr. ir. Bart J. Morsink <bmorsink@me.com>"]
-version = "1.0.0"
+version = "0.1.0"
 
 [deps]
 Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
