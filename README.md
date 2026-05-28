@@ -2,10 +2,9 @@
 
 [![Build Status](https://github.com/bmorsink/QubiSim.jl/actions/workflows/CI.yml/badge.svg?branch=main)](https://github.com/bmorsink/QubiSim.jl/actions/workflows/CI.yml?query=branch%3Amain)
 [![Docs](https://img.shields.io/badge/docs-latest-blue.svg)](https://bmorsink.github.io/QubiSim/)
-[![Version](https://img.shields.io/github/v/release/bmorsink/QubiSim?label=version)](https://github.com/bmorsink/QubiSim/releases)
-[![Downloads](https://img.shields.io/github/downloads/bmorsink/QubiSim/total)](https://github.com/bmorsink/QubiSim/releases)
-[![License](https://img.shields.io/github/license/bmorsink/QubiSim)](LICENSE)
-
+[![Version](https://img.shields.io/github/v/release/bmorsink/QubiSim.jl?label=version)](https://github.com/bmorsink/QubiSim.jl/releases)
+[![Downloads](https://img.shields.io/github/downloads/bmorsink/QubiSim.jl/total)](https://github.com/bmorsink/QubiSim.jl/releases)
+[![License](https://img.shields.io/github/license/bmorsink/QubiSim.jl)](LICENSE)
 
 A Julia package for simulating quantum algorithms using a Schrödinger-based approach.
 
