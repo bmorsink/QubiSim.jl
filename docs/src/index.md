@@ -5,7 +5,7 @@ QubiSim is designed for:
 - Simulation of quantum circuits with **time-ordered operations**
 - Exact evolution of quantum states in the Schrödinger picture
 - Support for:
-  - **Unitary dynamics**
+  - **Unitary dynamics**, including probabilistic application via **Bernoulli gates**
   - **Quantum channels** via CPTP maps with Kraus operators
   - **Projective (PVM)** and **generalized (POVM)** measurements
 - Representation of quantum states as:

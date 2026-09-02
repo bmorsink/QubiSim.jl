@@ -4,7 +4,7 @@ Given a [`QuantumCircuit`](@ref), the compilation with [`compileQuantumCircuit`]
 
 ![Program](AbstractProgram.jpg)
 
-QubiSim supports four types of operations: [`UnitaryOperation`](@ref), [`MeasureOperation`](@ref), [`MeasureAndForgetOperation`](@ref) and [`QuantumChannelOperation`](@ref). In steps with unitary gates, the compilation process constructs a single [`UnitaryOperation`](@ref) by taking the [`tensorProduct`](@ref) of the individual unitary matrices for each gate in that step.
+QubiSim supports five types of operations: [`UnitaryOperation`](@ref), [`MeasureOperation`](@ref), [`MeasureAndForgetOperation`](@ref), [`QuantumChannelOperation`](@ref) and [`BernoulliOperation`](@ref). In steps with unitary gates, the compilation process constructs a single [`UnitaryOperation`](@ref) by taking the [`tensorProduct`](@ref) of the individual unitary matrices for each gate in that step.
 
 QubiSim also offers an optimization feature: calling [`compileQuantumCircuit`](@ref) with the `optimizeNumberOfSteps` option set to true, consecutive steps containing only unitary gates can be merged (fused) into one operation. This combined operation is created by sequentially multiplying the unitary matrices, thereby reducing the number of operations in the final quantum program for potentially more efficient execution.
 
@@ -13,6 +13,8 @@ QubiSim also offers an optimization feature: calling [`compileQuantumCircuit`](@
 When a step includes measure gates, the compiler creates a [`MeasureOperation`](@ref) or [`MeasureAndForgetOperation`](@ref) (depending on whether the measurement outcome is revealed to the observer or not) that holds the [`KrausOperators`](@ref). If the measurement outcome is revealed to the observer, the post-measurement state will be collapsed to one of the possible outcomes. If it is not revealed, the post-measurement state will be a mixed state over all possible outcomes. For a **projective measurement (PVM)**, the compiler automatically generates the equivalent [`KrausOperators`](@ref), effectively converting it into a **generalized measurement (POVM)**. For a **generalized measurement (POVM)**, the supplied [`KrausOperators`](@ref) are used directly.
 
 In steps with a quantum channel gate, the compiler creates a [`QuantumChannelOperation`](@ref) that holds the [`KrausOperators`](@ref).
+
+For steps containing a Bernoulli gate, the compiler creates a [`BernoulliOperation`](@ref) that stores the [`UnitaryOperation`](@ref) for the unitary gate and the probability of applying it during program execution.
 
 QubiSim provides functions to create various operations:
 

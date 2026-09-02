@@ -778,6 +778,31 @@ end
         end
     end
 
+    @testset "Bernoulli gate" verbose = true begin
+        @testset "Program: Big endian 1 qubit Bernoulli-gate on qubit 1" begin
+            qc=createQuantumCircuit(1)
+            bernoulliGate!(qc, [1], 0.3, createSingleQubitOperationH())
+            qp=compileQuantumCircuit(qc; optimizeNumberOfSteps=true)
+
+            @test qp.program[1].U ≈ [0.7071067811865476 + 0.0im 0.7071067811865475 + 0.0im; 0.7071067811865475 + 0.0im -0.7071067811865476 + 0.0im] atol=1e-10
+            @test qp.program[1].probability ≈ 0.3 
+        end
+        @testset "Output: Big endian 1 qubit Bernoulli-gate on qubit 1" begin
+            n=1000
+            p=0.3
+            qc=createQuantumCircuit(1)
+            bernoulliGate!(qc, [1], p, createSingleQubitOperationX())
+            measureGate!(qc, [1])
+            qp=compileQuantumCircuit(qc)
+            iqs=createInitialQubitState(vector, [1. 0.])
+            qo=runQuantumProgram(qp, iqs, n)
+            nrOfBitFlipped=sum([qo.output[3,k].measured.outcome for k in 1:n])
+
+            @test n*p-3*sqrt(n*p*(1-p)) < nrOfBitFlipped
+            @test nrOfBitFlipped < n*p+3*sqrt(n*p*(1-p))
+        end
+    end
+
     @testset "compileToSingleGate" verbose = true begin
         @testset "Function: Big endian 2 qubit compile cnot circuit to single gate" begin
             cnotCircuit=createQuantumCircuit(2)
@@ -2240,6 +2265,21 @@ end
             qo1 = runQuantumProgram(qp, iqs, 1)
 
             @test qo1.output[2].rho ≈ [qo1.output[1].rho[1,1]+p*qo1.output[1].rho[2,2] sqrt(1-p)*qo1.output[1].rho[1,2]; sqrt(1-p)*qo1.output[1].rho[2,1] (1-p)*qo1.output[1].rho[2,2]] atol=1e-6
+        end
+    end
+
+    @testset "Bit-flip quantum channel" verbose = true begin
+        @testset "Output: Acting on single qubit in pure state" begin
+            p=0.75
+            qc = createQuantumCircuit(1)
+            quantumChannelGate!(qc, [1], generateKrausOperatorsForBitFlipChannel(p))
+            qp = compileQuantumCircuit(qc; optimizeNumberOfSteps=true)
+            theta = pi/4
+            phi = 0
+            iqs = createInitialQubitState(density, [[1., [theta phi]]], blochRepresentation=true)
+            qo1 = runQuantumProgram(qp, iqs, 1)
+
+            @test qo1.output[2].rho ≈ [(1-p)*qo1.output[1].rho[1,1]+p*qo1.output[1].rho[2,2] (1-p)*qo1.output[1].rho[1,2]+p*qo1.output[1].rho[2,1]; (1-p)*qo1.output[1].rho[2,1]+p*qo1.output[1].rho[1,2] (1-p)*qo1.output[1].rho[2,2]+p*qo1.output[1].rho[1,1]] atol=1e-6
         end
     end
 end;

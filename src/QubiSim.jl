@@ -24,7 +24,7 @@ export createToggleSwapList, tensorProduct, partialTrace, fidelity
 export barrier!
 export unitaryUGate!
 export measureGate!, sigmaX, sigmaY, sigmaZ, sigmaN, pauliX, pauliY, pauliZ, generateKrausOperatorsForPVMMeasurement
-export generateKrausOperatorsForDepolarizingChannel, generateKrausOperatorsForPhaseDampingChannel, generateKrausOperatorsForAmplitudeDampingChannel
+export generateKrausOperatorsForDepolarizingChannel, generateKrausOperatorsForPhaseDampingChannel, generateKrausOperatorsForAmplitudeDampingChannel, generateKrausOperatorsForBitFlipChannel
 export quantumChannelGate!
 export u1Gate!, createSingleQubitOperationU1
 export u2Gate!, createSingleQubitOperationU2
@@ -61,6 +61,8 @@ export controlledTdGate!, createDoubleQubitOperationControlledTd
 export controlledSGate!, createDoubleQubitOperationControlledS
 export controlledSdGate!, createDoubleQubitOperationControlledSd
 export qpeGate!, createNQubitOperationQPE, createNQubitQPEQuantumCircuit
+
+export BernoulliGate, BernoulliStep, bernoulliGate!, BernoulliOperation
 
 export probeMeasureOutcome, probeMeasureProbability, probeStateProbability, probeStateMultiBlochVector
 
@@ -584,6 +586,48 @@ function qubits(gate::QuantumChannelGate)
 end
 
 """
+    struct BernoulliGate{F <: Function} <: Gate
+
+Represents a Bernoulli quantum gate.
+
+This struct is parametric, allowing it to hold a type-stable function that generates the corresponding unitary operation of the Bernoulli quantum gate.
+
+# Type parameters
+- `F <: Function`: The concrete type of the factory function that creates the unitary operation.
+
+# Fields
+- `unitaryOperationFactory::F` — A callable object (typically a closure that captures all the necessary information) that, when invoked, returns a `UnitaryOperation`.
+- `qubits::Qubits` — The qubits this gate operates on.
+- `probability::Float64` — The probability of applying the unitary operation.
+- `name::String` — The name of the gate.
+
+# See also
+- [`Gate`](@ref)
+- [`UnitaryOperation`](@ref)
+- [`BernoulliOperation`](@ref)
+- [`Qubits`](@ref)
+
+# Example
+Add a Bernoulli gate for a Pauli-X operation with probability 0.3 to a 3-qubit quantum circuit at qubit position 2:
+```julia-repl
+julia> qc = createQuantumCircuit(3)
+julia> bernoulliGate!(qc, [2], 0.3, createSingleQubitOperationX())
+julia> getGate(qc, getStep(qc, 1), 1) # first step, first gate
+BernoulliGate{QAlgoSim.var"#129#130"{UnitaryOperation}}(QAlgoSim.var"#129#130"{UnitaryOperation}(UnitaryOperation(ComplexF64[0.0 + 0.0im 1.0 + 0.0im; 1.0 + 0.0im 0.0 + 0.0im])), [2], 0.3, "Bernoulli")
+```
+"""
+struct BernoulliGate{F <: Function} <: Gate
+	unitaryOperationFactory::F
+	qubits::Qubits
+	probability::Float64
+	name::String
+end
+
+function qubits(gate::BernoulliGate)
+	gate.qubits
+end
+
+"""
 	abstract type Step
 
 Abstract type representing a generic step in a quantum circuit.
@@ -636,6 +680,22 @@ Represents a quantum channel step in a quantum circuit, consisting of a single q
 """
 struct QuantumChannelStep <: Step
     gate::QuantumChannelGate
+end
+
+"""
+    struct BernoulliStep <: Step
+
+Represents a Bernoulli step in a quantum circuit, consisting of a single Bernoulli gate.
+
+# Fields
+- `gate::BernoulliGate` — The Bernoulli gate used in this `Step`.
+
+# See also
+- [`Step`](@ref)
+- [`BernoulliGate`](@ref)
+"""
+struct BernoulliStep <: Step
+    gate::BernoulliGate
 end
 
 """
@@ -736,15 +796,15 @@ Retrieves a specific gate from a step in the quantum circuit.
 
 # Arguments
 - `quantumCircuit::QuantumCircuit` — The parent circuit.
-- `step` — A circuit step (e.g. `UnitaryStep`, `MeasurementStep`, `QuantumChannelStep`).
+- `step` — A circuit step (e.g. `UnitaryStep`, `MeasurementStep`, `QuantumChannelStep`, `BernoulliStep`).
 - `gateId::Int` — The index of the gate within the step (1-based or 0-based depending on `Settings`).
 
 # Returns
-- The specified `Gate` (e.g. `UnitaryGate`, `MeasureGate`, or `QuantumChannelGate`).
+- The specified `Gate` (e.g. `UnitaryGate`, `MeasureGate`, `QuantumChannelGate`, or `BernoulliGate`).
 
 # Notes
 - `UnitaryStep`s can contain multiple gates.
-- `MeasurementStep` and `QuantumChannelStep` each contain only one gate; `gateId` must be 1.
+- `MeasurementStep`, `QuantumChannelStep` and `BernoulliStep` each contain only one gate; `gateId` must be 1.
 
 # See also
 - [`QuantumCircuit`](@ref)
@@ -752,10 +812,12 @@ Retrieves a specific gate from a step in the quantum circuit.
 - [`UnitaryGate`](@ref)
 - [`MeasureGate`](@ref)
 - [`QuantumChannelGate`](@ref)
+- [`BernoulliGate`](@ref)
 - [`Settings`](@ref)
 - [`UnitaryStep`](@ref)
 - [`MeasurementStep`](@ref)
 - [`QuantumChannelStep`](@ref)
+- [`BernoulliStep`](@ref)
 
 # Example
 Extract the gates from a quantum circuit:
@@ -765,11 +827,11 @@ julia> hGate!(qc, 2)
 julia> hGate!(qc, 1)
 julia> cnotGate!(qc, 1, 2)
 julia> getGate(qc, getStep(qc, 1), 1)
-UnitaryGate{QubiSim.var"#11#12"}(QubiSim.var"#11#12"(), [2], "H")
+UnitaryGate{QAlgoSim.var"#11#12"}(QAlgoSim.var"#11#12"(), [2], "H")
 julia> getGate(qc, getStep(qc, 1), 2)
-UnitaryGate{QubiSim.var"#11#12"}(QubiSim.var"#11#12"(), [1], "H")
+UnitaryGate{QAlgoSim.var"#11#12"}(QAlgoSim.var"#11#12"(), [1], "H")
 julia> getGate(qc, getStep(qc, 2), 1)
-UnitaryGate{QubiSim.var"#41#42"}(QubiSim.var"#41#42"(), [1, 2], "CNOT")
+UnitaryGate{QAlgoSim.var"#41#42"}(QAlgoSim.var"#41#42"(), [1, 2], "CNOT")
 ```
 """
 function getGate(quantumCircuit::QuantumCircuit, step::UnitaryStep, gateId::Int)
@@ -787,6 +849,13 @@ function getGate(quantumCircuit::QuantumCircuit, step::QuantumChannelStep, gateI
 		return step.gate
 	else
 		throw("The gateId=$(gateId) and cannot be greater than 1 since a QuantumChannelStep contains only 1 gate.")
+	end
+end
+function getGate(quantumCircuit::QuantumCircuit, step::BernoulliStep, gateId::Int)
+	if convertToOneBasedNumbering(quantumCircuit.settings, gateId) == 1
+		return step.gate
+	else
+		throw("The gateId=$(gateId) and cannot be greater than 1 since a BernoulliStep contains only 1 gate.")
 	end
 end
 
@@ -1053,6 +1122,40 @@ struct QuantumChannelOperation <: Operation
 	krausOperators::KrausOperators
 end
 
+""" 
+    struct BernoulliOperation <: Operation
+
+A Bernoulli operation represented by a unitary matrix and the probability of applying it.
+
+# Fields
+- `U::ComplexMatrix` — Unitary matrix ``U`` defining the operation.
+- `probability::Float64` — The probability of applying the operation.
+
+# Quantum state evolution
+- **Quantum vector state**:
+    - A pure state ``|ψ⟩`` evolves as: ``|ψ⟩ → U·|ψ⟩`` with `probability` while with `1-probability` the state is left unchanged ``|ψ⟩ → |ψ⟩``.
+- **Quantum density state**:
+    - A density operator ``ρ`` evolves as: ``ρ → U·ρ·U^†`` with `probability` while with `1-probability` the state is left unchanged ``ρ → ρ``.
+
+# See also
+- [`BernoulliGate`](@ref)
+- [`Operation`](@ref)
+
+# Example
+Extract the Bernoulli operation of a Bernoulli gate for a Pauli-X operation with probability 0.3 added to a single-qubit quantum circuit:
+```julia-repl
+julia> qc = createQuantumCircuit(1)
+julia> bernoulliGate!(qc, [1], 0.3, createSingleQubitOperationX())
+julia> qp = compileQuantumCircuit(qc)
+julia> getOperation(qp, 1)
+BernoulliOperation(ComplexF64[0.0 + 0.0im 1.0 - 0.0im; 1.0 + 0.0im 0.0 + 0.0im], 0.3)
+```
+"""
+struct BernoulliOperation <: Operation
+	U::ComplexMatrix
+	probability::Float64
+end
+
 """
     getOperation(
 		quantumProgram::QuantumProgram, 
@@ -1068,7 +1171,7 @@ The `Operation` is retrieved using the program’s internal indexing scheme as d
 - `operationId::Int` — The index of the operation to retrieve (1-based or 0-based depending on `settings`).
 
 # Returns
-- `Operation` — A subtype of `Operation`, such as a `UnitaryOperation`, `MeasureOperation`, `MeasureAndForgetOperation`, or `QuantumChannelOperation`.
+- `Operation` — A subtype of `Operation`, such as a `UnitaryOperation`, `MeasureOperation`, `MeasureAndForgetOperation`, `QuantumChannelOperation`, or `BernoulliOperation`.
 
 # See also
 - [`QuantumProgram`](@ref)
@@ -1078,6 +1181,7 @@ The `Operation` is retrieved using the program’s internal indexing scheme as d
 - [`MeasureOperation`](@ref)
 - [`MeasureAndForgetOperation`](@ref)
 - [`QuantumChannelOperation`](@ref)
+- [`BernoulliOperation`](@ref)
 
 # Example
 Extract the first and second operations from a quantum program created from a single-qubit circuit:
@@ -1444,6 +1548,10 @@ function addGate!(quantumCircuit::QuantumCircuit, gate::QuantumChannelGate)
 end
 function addGate!(quantumCircuit::QuantumCircuit, gate::MeasureGate)
 	push!(quantumCircuit.circuit, MeasurementStep(gate))
+	quantumCircuit.numberOfStepsOnQubits = (length(quantumCircuit.circuit)+1)*ones(Int, quantumCircuit.numberOfQubits)
+end
+function addGate!(quantumCircuit::QuantumCircuit, gate::BernoulliGate)
+	push!(quantumCircuit.circuit, BernoulliStep(gate))
 	quantumCircuit.numberOfStepsOnQubits = (length(quantumCircuit.circuit)+1)*ones(Int, quantumCircuit.numberOfQubits)
 end
 
@@ -3390,6 +3498,98 @@ function unitaryUGate!(quantumCircuit::QuantumCircuit, qubits::Qubits, U::Unitar
 		    () -> U,
     		convertToByteIndex(quantumCircuit.settings, quantumCircuit.numberOfQubits, qubits),
 			"Unitary"
+		))
+	else
+		throw("U:$U is not unitary")
+	end
+end
+
+""" 
+	bernoulliGate!(
+		quantumCircuit::QuantumCircuit, 
+		qubits::Qubits,
+		probability::Float64,
+		U::UnitaryOperation; 
+		accuracyCheckForUnitarity = 10*eps(1.0)
+	) -> Nothing
+
+Adds a **Bernoulli gate** to the `quantumCircuit` on the specified `qubits` with a user-supplied `probability` and  **unitary operation** ``U``.
+
+During quantum program execution, for each shot, the **Bernoulli gate** applies the user-supplied **unitary operation** ``U`` with probability `probability`, while with probability `1-probability` the state is left unchanged.
+
+The function performs an internal unitarity check to ensure that the user-supplied **unitary operation** ``U`` satisfies the condition ``U^†⋅U ≈ I`` within a specified numerical tolerance.
+
+Under the hood, it creates a `BernoulliGate` holding a factory function that can generate the unitary matrix of the **unitary operation**, and adds 
+it to the circuit. During compilation, this factory function simply returns the user-suppied **unitary operation** ``U`` as the produced unitary matrix.
+
+# Arguments
+- `quantumCircuit::QuantumCircuit` — The quantum circuit to which the gate is added.
+- `qubits::Qubits` — A collection of qubit indices (interpreted using the circuit’s `settings`) on which the gate is applied.
+- `probability::Float64` — The probability of applying the unitary operation.
+- `U::UnitaryOperation` — A structure encapsulating the unitary matrix ``U`` representation of the **unitary operation**.
+- `accuracyCheckForUnitarity::Float64` (optional) — Numerical tolerance for unitarity validation, defaulting to `10 * eps(1.0)`.
+
+# Returns
+- `Nothing` — This function mutates the input `quantumCircuit` by adding the gate in-place.
+
+# Throws
+- A `String` exception if ``U`` is not unitary within the given tolerance.
+
+# See also
+- [`QuantumCircuit`](@ref)
+- [`BernoulliGate`](@ref)
+- [`Settings`](@ref)
+- [`Qubits`](@ref)
+
+# Supported **unitary operations** include
+- Single-qubit gates:
+  - [`createSingleQubitOperationU1`](@ref)
+  - [`createSingleQubitOperationU2`](@ref)
+  - [`createSingleQubitOperationU3`](@ref)
+  - [`createSingleQubitOperationX`](@ref)
+  - [`createSingleQubitOperationY`](@ref)
+  - [`createSingleQubitOperationZ`](@ref)
+  - [`createSingleQubitOperationH`](@ref)
+  - [`createSingleQubitOperationId`](@ref)
+  - [`createSingleQubitOperationRx`](@ref)
+  - [`createSingleQubitOperationRy`](@ref)
+  - [`createSingleQubitOperationRz`](@ref)
+  - [`createSingleQubitOperationRotation`](@ref)
+  - [`createSingleQubitOperationT`](@ref)
+  - [`createSingleQubitOperationTd`](@ref)
+  - [`createSingleQubitOperationS`](@ref)
+  - [`createSingleQubitOperationSd`](@ref)
+- Double-qubit gates:
+  - [`createDoubleQubitOperationCNOT`](@ref)
+  - [`createDoubleQubitOperationCNOTReverse`](@ref)
+  - [`createDoubleQubitOperationSWAP`](@ref)
+  - [`createDoubleQubitOperationPhase`](@ref)
+- Multi-qubit gates:
+  - [`createNQubitOperationProjection`](@ref)
+  - [`createNQubitOperationReflection`](@ref)
+  - [`createNQubitOperationExpH`](@ref)
+  - [`createNQubitOperationQFT`](@ref)
+  - [`createNQubitOperationIQFT`](@ref)
+  - [`createNQubitOperationControlledU`](@ref)
+  - [`createNQubitOperationQPE`](@ref)
+  - [`compileToSingleGate`](@ref)
+
+# Example
+Add a **Bernoulli gate** for a Pauli-X operation with probability 0.3 on qubit 1 to a 2-qubit quantum circuit:
+```julia-repl
+julia> qc = createQuantumCircuit(2)
+julia> bernoulliGate!(qc, [1], 0.3, createSingleQubitOperationX())
+julia> getGate(qc, getStep(qc, 1), 1) # first step, first gate
+BernoulliGate{QAlgoSim.var"#129#130"{UnitaryOperation}}(QAlgoSim.var"#129#130"{UnitaryOperation}(UnitaryOperation(ComplexF64[0.0 + 0.0im 1.0 + 0.0im; 1.0 + 0.0im 0.0 + 0.0im])), [1], 0.3, "Bernoulli")
+```
+"""
+function bernoulliGate!(quantumCircuit::QuantumCircuit, qubits::Qubits, probability::Float64, U::UnitaryOperation; accuracyCheckForUnitarity = 10*eps(1.0))
+	if all(abs.(U.U'*U.U-ComplexMatrix(I,size(U.U))).<accuracyCheckForUnitarity)
+		addGate!(quantumCircuit, BernoulliGate(
+		    () -> U,
+    		convertToByteIndex(quantumCircuit.settings, quantumCircuit.numberOfQubits, qubits),
+			probability,
+			"Bernoulli"
 		))
 	else
 		throw("U:$U is not unitary")
@@ -6139,6 +6339,13 @@ function compileStep!(program::QuantumProgram, step::QuantumChannelStep, numberO
     push!(program.program, QuantumChannelOperation(krausOperators))
 end
 
+function compileStep!(program::QuantumProgram, step::BernoulliStep, numberOfQubits::Int, optimize::Bool)
+	UStep = step.gate.unitaryOperationFactory()
+    UStep = moveNQubitOperationToListOfQubits(UStep, step.gate.qubits, numberOfQubits)
+
+    push!(program.program, BernoulliOperation(UStep.U, step.gate.probability))
+end
+
 function compileStep!(program::QuantumProgram, step::Step, numberOfQubits::Int, optimize::Bool)
     error("Unsupported quantum step type: $(typeof(step))")
 end
@@ -6479,7 +6686,7 @@ end
 
 function applyOperationOnQubitState(measureAndForgetOperation::MeasureAndForgetOperation, densityState::DensityState, cache::Cache)
 	prob = zeros(length(measureAndForgetOperation.krausOperators))
-	rhoa = zeros(size(densityState.rho))
+	rhoa = zeros(ComplexF64, size(densityState.rho))
 	for m in axes(measureAndForgetOperation.krausOperators, 1)
 		mul!(cache.cM1, measureAndForgetOperation.measurementOperators[m], densityState.rho)
 		prob[m] = real(tr(cache.cM1))
@@ -6502,13 +6709,30 @@ function applyOperationOnQubitState(quantumChannelOperation::QuantumChannelOpera
 end
 
 function applyOperationOnQubitState(quantumChannelOperation::QuantumChannelOperation, densityState::DensityState, cache::Cache)
-	rhoa = zeros(size(densityState.rho))
+	rhoa = zeros(ComplexF64, size(densityState.rho))
 	for krausOperator in quantumChannelOperation.krausOperators
 		mul!(cache.cM1, densityState.rho, krausOperator.E')
 		mul!(cache.cM2, krausOperator.E, cache.cM1)
 		rhoa .+= cache.cM2
 	end
 	return DensityState(rhoa)
+end
+
+function applyOperationOnQubitState(bernoulliOperation::BernoulliOperation, vectorState::VectorState, cache::Cache)
+	if rand() <= bernoulliOperation.probability
+		return VectorState(bernoulliOperation.U * vectorState.q)
+	else
+		return vectorState
+	end
+end
+
+function applyOperationOnQubitState(bernoulliOperation::BernoulliOperation, densityState::DensityState, cache::Cache)
+	if rand() <= bernoulliOperation.probability
+	    mul!(cache.cM1, densityState.rho, (bernoulliOperation.U'))
+		return DensityState(bernoulliOperation.U * cache.cM1)
+	else
+		return densityState
+	end
 end
 
 """ 
@@ -7172,6 +7396,61 @@ function generateKrausOperatorsForAmplitudeDampingChannel(p::Float64)
 	krausOperators = KrausOperators()
 	push!(krausOperators, KrausOperator(ComplexMatrix([1. 0; 0. sqrt(1-p)]), "M0"))
 	push!(krausOperators, KrausOperator(ComplexMatrix([0. sqrt(p); 0. 0.]), "M1"))
+	return krausOperators
+end
+
+""" 
+    generateKrausOperatorsForBitFlipChannel(
+        p::Float64
+    ) -> KrausOperators
+
+Constructs the Kraus operators for a single-qubit bit-flip quantum channel.
+The bit-flip channel models a probabilistic application of the Pauli-X operation.
+With probability `p`, the qubit state is flipped, ``|0⟩ ↔ |1⟩``, while with probability `1-p` the state is left unchanged.
+
+The channel acts on a density matrix ``ρ`` as:
+
+```math
+ρ = [ρ_{00}, ρ_{01}; ρ_{10}, ρ_{11}] → (1-p)⋅ρ + p⋅(X⋅ρ⋅X) = [(1-p)⋅ρ_{00}+p⋅ρ_{11}, (1−p)⋅ρ_{01}+p⋅ρ_{10}; (1−p)⋅ρ_{10}+p⋅ρ_{01}, (1−p)⋅ρ_{11}+p⋅ρ_{00}]
+```
+
+where ``X`` is the Pauli-X operator.
+
+The corresponding Kraus operators are: ``M_0 = √(1-p)⋅I`` (induces no bit-flip) and ``M_1 = √p⋅X`` (induces bit-flip ``|1⟩ ↔ |0⟩``).
+
+# Effects
+- With probability ``1-p``, the qubit is unchanged.
+- With probability ``p``, the qubit undergoes a bit-flip ``|0⟩ ↔ |1⟩``.
+
+# Arguments
+- `p::Float64` - The probability of spontaneous bit-flip ``|0⟩ ↔ |1⟩``.
+
+# Returns
+- `KrausOperators` — List of Kraus operators ``M_0, M_1`` corresponding to the **bit-flip quantum channel**.
+
+# See Also
+- [`KrausOperators`](@ref)
+- [`quantumChannelGate!`](@ref)
+- [`QuantumChannelGate`](@ref)
+- [`QuantumChannelOperation`](@ref)
+
+# Example
+Applying a bit-flip quantum channel with p = 0.3 on a qubit:
+```julia-repl
+julia> qc = createQuantumCircuit(1)
+julia> quantumChannelGate!(qc, [1], generateKrausOperatorsForBitFlipChannel(0.3))
+julia> qp = compileQuantumCircuit(qc)
+julia> iqs = createInitialQubitState(density, [[1., [0. 0.]]], blochRepresentation=true)
+julia> qo = runQuantumProgram(qp, iqs, 1)
+
+julia> round.(real.(qo.output[2].rho), digits=3)
+[0.7 0.0; 0.0 0.3]
+```
+"""
+function generateKrausOperatorsForBitFlipChannel(p::Float64)
+	krausOperators = KrausOperators()
+	push!(krausOperators, KrausOperator(ComplexMatrix([sqrt(1-p) 0; 0. sqrt(1-p)]), "M0"))
+	push!(krausOperators, KrausOperator(ComplexMatrix([0. sqrt(p); sqrt(p) 0.]), "M1"))
 	return krausOperators
 end
 

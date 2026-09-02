@@ -69,6 +69,10 @@ QuantumChannelGate
 ```
 
 ```@docs
+BernoulliGate
+```
+
+```@docs
 UnitaryStep
 ```
 
@@ -78,6 +82,10 @@ MeasurementStep
 
 ```@docs
 QuantumChannelStep
+```
+
+```@docs
+BernoulliStep
 ```
 
 ```@docs
@@ -121,6 +129,10 @@ quantumChannelGate!
 ```
 
 ```@docs
+bernoulliGate!
+```
+
+```@docs
 generateKrausOperatorsForPVMMeasurement
 ```
 
@@ -134,6 +146,10 @@ generateKrausOperatorsForPhaseDampingChannel
 
 ```@docs
 generateKrausOperatorsForAmplitudeDampingChannel
+```
+
+```@docs
+generateKrausOperatorsForBitFlipChannel
 ```
 
 ```@docs
@@ -346,6 +362,10 @@ MeasureAndForgetOperation
 
 ```@docs
 QuantumChannelOperation
+```
+
+```@docs
+BernoulliOperation
 ```
 
 ```@docs
