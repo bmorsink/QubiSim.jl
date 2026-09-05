@@ -599,7 +599,6 @@ This struct is parametric, allowing it to hold a type-stable function that gener
 - `unitaryOperationFactory::F` — A callable object (typically a closure that captures all the necessary information) that, when invoked, returns a `UnitaryOperation`.
 - `qubits::Qubits` — The qubits this gate operates on.
 - `probability::Float64` — The probability of applying the unitary operation.
-- `name::String` — The name of the gate.
 
 # See also
 - [`Gate`](@ref)
@@ -613,14 +612,13 @@ Add a Bernoulli gate for a Pauli-X operation with probability 0.3 to a 3-qubit q
 julia> qc = createQuantumCircuit(3)
 julia> bernoulliGate!(qc, [2], 0.3, createSingleQubitOperationX())
 julia> getGate(qc, getStep(qc, 1), 1) # first step, first gate
-BernoulliGate{QAlgoSim.var"#129#130"{UnitaryOperation}}(QAlgoSim.var"#129#130"{UnitaryOperation}(UnitaryOperation(ComplexF64[0.0 + 0.0im 1.0 + 0.0im; 1.0 + 0.0im 0.0 + 0.0im])), [2], 0.3, "Bernoulli")
+BernoulliGate{QAlgoSim.var"#129#130"{UnitaryOperation}}(QAlgoSim.var"#129#130"{UnitaryOperation}(UnitaryOperation(ComplexF64[0.0 + 0.0im 1.0 + 0.0im; 1.0 + 0.0im 0.0 + 0.0im])), [2], 0.3)
 ```
 """
 struct BernoulliGate{F <: Function} <: Gate
 	unitaryOperationFactory::F
 	qubits::Qubits
 	probability::Float64
-	name::String
 end
 
 function qubits(gate::BernoulliGate)
@@ -1133,9 +1131,9 @@ A Bernoulli operation represented by a unitary matrix and the probability of app
 
 # Quantum state evolution
 - **Quantum vector state**:
-    - A pure state ``|ψ⟩`` evolves as: ``|ψ⟩ → U·|ψ⟩`` with `probability` while with `1-probability` the state is left unchanged ``|ψ⟩ → |ψ⟩``.
+    - A pure state ``|ψ⟩`` evolves as: ``|ψ⟩ → U·|ψ⟩`` with probability `probability` while with probability `1-probability` the state is left unchanged ``|ψ⟩ → |ψ⟩``.
 - **Quantum density state**:
-    - A density operator ``ρ`` evolves as: ``ρ → U·ρ·U^†`` with `probability` while with `1-probability` the state is left unchanged ``ρ → ρ``.
+    - A density operator ``ρ`` evolves as: ``ρ → U·ρ·U^†`` with probability `probability` while with probability `1-probability` the state is left unchanged ``ρ → ρ``.
 
 # See also
 - [`BernoulliGate`](@ref)
@@ -3580,7 +3578,7 @@ Add a **Bernoulli gate** for a Pauli-X operation with probability 0.3 on qubit 1
 julia> qc = createQuantumCircuit(2)
 julia> bernoulliGate!(qc, [1], 0.3, createSingleQubitOperationX())
 julia> getGate(qc, getStep(qc, 1), 1) # first step, first gate
-BernoulliGate{QAlgoSim.var"#129#130"{UnitaryOperation}}(QAlgoSim.var"#129#130"{UnitaryOperation}(UnitaryOperation(ComplexF64[0.0 + 0.0im 1.0 + 0.0im; 1.0 + 0.0im 0.0 + 0.0im])), [1], 0.3, "Bernoulli")
+BernoulliGate{QAlgoSim.var"#129#130"{UnitaryOperation}}(QAlgoSim.var"#129#130"{UnitaryOperation}(UnitaryOperation(ComplexF64[0.0 + 0.0im 1.0 + 0.0im; 1.0 + 0.0im 0.0 + 0.0im])), [1], 0.3)
 ```
 """
 function bernoulliGate!(quantumCircuit::QuantumCircuit, qubits::Qubits, probability::Float64, U::UnitaryOperation; accuracyCheckForUnitarity = 10*eps(1.0))
@@ -3588,8 +3586,7 @@ function bernoulliGate!(quantumCircuit::QuantumCircuit, qubits::Qubits, probabil
 		addGate!(quantumCircuit, BernoulliGate(
 		    () -> U,
     		convertToByteIndex(quantumCircuit.settings, quantumCircuit.numberOfQubits, qubits),
-			probability,
-			"Bernoulli"
+			probability
 		))
 	else
 		throw("U:$U is not unitary")

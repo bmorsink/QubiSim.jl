@@ -6,9 +6,9 @@
 
 - User calls `someUnitaryGate!` with a circuit, qubits and parameters (optional).
 - Internally, this:
-  - Wraps a factory function, that knows how to create the corresponding unitary operation, into a UnitaryGate.
-  - This factory function is typically a closure that captures all the necessary parameters.
   - Computes the byte indices for the target qubits.
+  - Wraps a factory function, that knows how to create the corresponding unitary operation, into a `UnitaryGate`.
+  - This factory function is typically a closure that captures all the necessary parameters.
   - Calls `addGate!` to insert the gate into the circuit.
     - Decides whether to place the gate in a new `UnitaryStep` (and appends it to the circuit) or merges into an existing `UnitaryStep` (based on bookkeeping).
     - Updates (`numberOfStepsOnQubits`) bookkeeping.
@@ -31,6 +31,7 @@ someUnitaryGate!(quantumCircuit, qubits, p1, ..., pn)
   - Qubits + sigmas (custom measurement basis PVM),
   - Qubits + Kraus operators (arbitrary POVM).
 - Internally, this:
+  - Computes the byte indices for the target qubits.
   - Creates a `MeasureGate`
   - Calls `addGate!` to insert the gate into the circuit.
     - Places the gate in a new `MeasurementStep` and appends the step to the circuit
@@ -48,9 +49,10 @@ measureGate!(quantumCircuit, qubits, sigmas, krausOperators; forgetOutcome=false
 
 - User calls `quantumChannelGate!` with qubits + Kraus operators.
 - Internally, this:
+  - Computes the byte indices for the target qubits.
   - Creates a `QuantumChannelGate`
   - Calls `addGate!` to insert the gate into the circuit.
-    - Creates a new `QuantumChannelStep` and appends it to the circuit
+    - Places the gate in a new `QuantumChannelStep` and appends it to the circuit
     - Updates (`numberOfStepsOnQubits`) bookkeeping.
 
 ```julia-repl
@@ -61,6 +63,25 @@ quantumChannelGate!(quantumCircuit, qubits, krausOperators)
  │           ├── push!(circuit, QuantumChannelStep(gate))
  │           └── update bookkeeping such that any next new gate insertion invokes the need for a new step
  └── barrier!(quantumCircuit)
+```
+
+### How QubiSim adds a Bernoulli gate to a quantum circuit  
+
+- User calls `bernoulliGate!` with a circuit, qubits, probability and a unitary operation of the chosen quantum gate.
+- Internally, this:
+  - Computes the byte indices for the target qubits.
+  - Wraps the byte indices, the probability and a new factory function that will generate the unitary operation, into a `BernoulliGate`.
+  - Calls `addGate!` to insert the gate into the circuit.
+    - Places the gate in a new `BernoulliStep` and appends it to the circuit
+    - Updates (`numberOfStepsOnQubits`) bookkeeping.
+- The factory function later produces the actual unitary operation when needed.
+
+```julia-repl
+bernoulliGate!(quantumCircuit, qubits, probability, UnitaryOperation)
+ └── addGate!(quantumCircuit, BernoulliGate(() -> UnitaryOperation, probability, convertToByteIndex(..., qubits)))
+       └── addGate!(…, gate::BernoulliGate)
+             ├── push!(circuit, BernoulliStep(gate))
+             └── update bookkeeping such that any next new gate insertion invokes the need for a new step
 ```
 
 
@@ -126,6 +147,18 @@ compileStep!(…, step::MeasurementStep, …)
 compileStep!(…, step::QuantumChannelStep, …)
  ├── moveNQubitKrausOperatorToListOfQubits(krausOperator, qubits, numberOfQubits)
  └── push!(program.program, QuantumChannelOperation(krausOperators))
+```
+
+  - If `compileStep!` is called with a `BernoulliStep`:
+    - Generates the gate’s unitary matrix using its factory function.
+    - Expands it to the full register of qubits.
+    - Adds a `BernoulliOperation` into the program.
+
+```julia-repl
+compileStep!(…, step::BernoulliStep, …)
+ ├── UGate = gate.unitaryOperationFactory()
+ ├── moveNQubitOperationToListOfQubits(UGate, gate.qubits, numberOfQubits)
+ └── push!(program.program, BernoulliOperation(UGate, probability))
 ```
 
 
@@ -229,6 +262,19 @@ applyOperationOnQubitState(quantumChannelOperation::QuantumChannelOperation, vec
 applyOperationOnQubitState(quantumChannelOperation::QuantumChannelOperation, densityState::DensityState)
  ├── apply all Kraus operators and sum over outcomes
  └── return DensityState with nothing measured
+```
+
+  - If `applyOperationOnQubitState!` is called with a `BernoulliOperation`, a random draw is compared with `BernoulliOperation.probability`. If the draw is smaller or equal, the operation is applied to the qubit state:
+    - `VectorState`: multiplies the state vector by the unitary matrix.
+    - `DensityState`: performs conjugation.
+  - Otherwise, if the random draw is greater than `BernoulliOperation.probability`, the qubit state is left unchanged.
+
+```julia-repl
+applyOperationOnQubitState(bernoulliOperation::BernoulliOperation, vectorState::VectorState)
+ └── if rand() <= bernoulliOperation.probability then VectorState(bernoulliOperation.U * vectorState.q) else vectorState
+
+applyOperationOnQubitState(bernoulliOperation::BernoulliOperation, densityState::DensityState)
+ └── if rand() <= bernoulliOperation.probability then DensityState(bernoulliOperation.U * densityState.ρ * bernoulliOperation.U†) else densityState
 ```
 
 

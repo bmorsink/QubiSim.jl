@@ -497,7 +497,7 @@ version = "1.4.0"
 deps = ["Documenter", "DocumenterTools", "LinearAlgebra", "PlotlyJS", "StatsBase"]
 path = "/Users/bmorsink/Desktop/MyLife/NonPrivate/Projecten/quantum_computer_simulator/QubiSim"
 uuid = "3f823c38-d010-4086-b4dc-b61855312ec9"
-version = "1.0.0-DEV"
+version = "0.1.0"
 
 [[deps.REPL]]
 deps = ["InteractiveUtils", "Markdown", "Sockets", "Unicode"]
