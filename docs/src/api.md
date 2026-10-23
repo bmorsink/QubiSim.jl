@@ -73,6 +73,10 @@ BernoulliGate
 ```
 
 ```@docs
+StochasticGate
+```
+
+```@docs
 UnitaryStep
 ```
 
@@ -86,6 +90,10 @@ QuantumChannelStep
 
 ```@docs
 BernoulliStep
+```
+
+```@docs
+StochasticStep
 ```
 
 ```@docs
@@ -130,6 +138,10 @@ quantumChannelGate!
 
 ```@docs
 bernoulliGate!
+```
+
+```@docs
+stochasticGate!
 ```
 
 ```@docs
@@ -366,6 +378,10 @@ QuantumChannelOperation
 
 ```@docs
 BernoulliOperation
+```
+
+```@docs
+StochasticOperation
 ```
 
 ```@docs

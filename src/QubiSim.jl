@@ -63,6 +63,7 @@ export controlledSdGate!, createDoubleQubitOperationControlledSd
 export qpeGate!, createNQubitOperationQPE, createNQubitQPEQuantumCircuit
 
 export BernoulliGate, BernoulliStep, bernoulliGate!, BernoulliOperation
+export StochasticGate, StochasticStep, stochasticGate!, StochasticOperation
 
 export probeMeasureOutcome, probeMeasureProbability, probeStateProbability, probeStateMultiBlochVector
 
@@ -585,6 +586,7 @@ function qubits(gate::QuantumChannelGate)
 	gate.qubits
 end
 
+
 """
     struct BernoulliGate{F <: Function} <: Gate
 
@@ -612,7 +614,7 @@ Add a Bernoulli gate for a Pauli-X operation with probability 0.3 to a 3-qubit q
 julia> qc = createQuantumCircuit(3)
 julia> bernoulliGate!(qc, [2], 0.3, createSingleQubitOperationX())
 julia> getGate(qc, getStep(qc, 1), 1) # first step, first gate
-BernoulliGate{QAlgoSim.var"#129#130"{UnitaryOperation}}(QAlgoSim.var"#129#130"{UnitaryOperation}(UnitaryOperation(ComplexF64[0.0 + 0.0im 1.0 + 0.0im; 1.0 + 0.0im 0.0 + 0.0im])), [2], 0.3)
+BernoulliGate{QubiSim.var"#129#130"{UnitaryOperation}}(QubiSim.var"#129#130"{UnitaryOperation}(UnitaryOperation(ComplexF64[0.0 + 0.0im 1.0 + 0.0im; 1.0 + 0.0im 0.0 + 0.0im])), [2], 0.3)
 ```
 """
 struct BernoulliGate{F <: Function} <: Gate
@@ -622,6 +624,46 @@ struct BernoulliGate{F <: Function} <: Gate
 end
 
 function qubits(gate::BernoulliGate)
+	gate.qubits
+end
+
+"""
+    struct StochasticGate{F <: Function} <: Gate
+
+Represents a stochastic quantum gate.
+
+This struct is parametric, allowing it to hold a type-stable function that generates the corresponding unitary operation of the stochastic quantum gate.
+
+# Type parameters
+- `F <: Function`: The concrete type of the factory function that creates the unitary operation.
+
+# Fields
+- `unitaryOperationFactory::F` — A callable object (typically a closure that captures all the necessary information) that, when invoked, returns a `UnitaryOperation`.
+- `qubits::Qubits` — The qubits this gate operates on.
+- `accuracyCheckForUnitarity::Float64` — Numerical tolerance for unitarity validation.
+
+# See also
+- [`Gate`](@ref)
+- [`UnitaryOperation`](@ref)
+- [`StoachasticOperation`](@ref)
+- [`Qubits`](@ref)
+
+# Example
+Add a stochastic gate for a U₁(λ) unitary operation with random phase rotation angle ``λ`` to a 3-qubit quantum circuit at qubit position 2:
+```julia-repl
+julia> qc = createQuantumCircuit(3)
+julia> stochasticGate!(qc, [2], () -> createSingleQubitOperationU1(rand()))
+julia> getGate(qc, getStep(qc, 1), 1) # first step, first gate
+StochasticGate{var"#11#12"}(var"#11#12"(), [2], 2.220446049250313e-15)
+```
+"""
+struct StochasticGate{F <: Function} <: Gate
+	unitaryOperationFactory::F
+	qubits::Qubits
+	accuracyCheckForUnitarity::Float64
+end
+
+function qubits(gate::StochasticGate)
 	gate.qubits
 end
 
@@ -694,6 +736,22 @@ Represents a Bernoulli step in a quantum circuit, consisting of a single Bernoul
 """
 struct BernoulliStep <: Step
     gate::BernoulliGate
+end
+
+"""
+    struct StochasticStep <: Step
+
+Represents a stoachastic step in a quantum circuit, consisting of a single stochastic gate.
+
+# Fields
+- `gate::StochasticGate` — The stochastic gate used in this `Step`.
+
+# See also
+- [`Step`](@ref)
+- [`StochasticGate`](@ref)
+"""
+struct StochasticStep <: Step
+    gate::StochasticGate
 end
 
 """
@@ -794,15 +852,15 @@ Retrieves a specific gate from a step in the quantum circuit.
 
 # Arguments
 - `quantumCircuit::QuantumCircuit` — The parent circuit.
-- `step` — A circuit step (e.g. `UnitaryStep`, `MeasurementStep`, `QuantumChannelStep`, `BernoulliStep`).
+- `step` — A circuit step (e.g. `UnitaryStep`, `MeasurementStep`, `QuantumChannelStep`, `BernoulliStep`, `StochasticStep`).
 - `gateId::Int` — The index of the gate within the step (1-based or 0-based depending on `Settings`).
 
 # Returns
-- The specified `Gate` (e.g. `UnitaryGate`, `MeasureGate`, `QuantumChannelGate`, or `BernoulliGate`).
+- The specified `Gate` (e.g. `UnitaryGate`, `MeasureGate`, `QuantumChannelGate`, `BernoulliGate`, or `StochasticGate`).
 
 # Notes
 - `UnitaryStep`s can contain multiple gates.
-- `MeasurementStep`, `QuantumChannelStep` and `BernoulliStep` each contain only one gate; `gateId` must be 1.
+- `MeasurementStep`, `QuantumChannelStep`, `BernoulliStep` and `StochasticStep` each contain only one gate; `gateId` must be 1.
 
 # See also
 - [`QuantumCircuit`](@ref)
@@ -811,11 +869,13 @@ Retrieves a specific gate from a step in the quantum circuit.
 - [`MeasureGate`](@ref)
 - [`QuantumChannelGate`](@ref)
 - [`BernoulliGate`](@ref)
+- [`StochasticGate`](@ref)
 - [`Settings`](@ref)
 - [`UnitaryStep`](@ref)
 - [`MeasurementStep`](@ref)
 - [`QuantumChannelStep`](@ref)
 - [`BernoulliStep`](@ref)
+- [`StochasticStep`](@ref)
 
 # Example
 Extract the gates from a quantum circuit:
@@ -825,11 +885,11 @@ julia> hGate!(qc, 2)
 julia> hGate!(qc, 1)
 julia> cnotGate!(qc, 1, 2)
 julia> getGate(qc, getStep(qc, 1), 1)
-UnitaryGate{QAlgoSim.var"#11#12"}(QAlgoSim.var"#11#12"(), [2], "H")
+UnitaryGate{QubiSim.var"#11#12"}(QubiSim.var"#11#12"(), [2], "H")
 julia> getGate(qc, getStep(qc, 1), 2)
-UnitaryGate{QAlgoSim.var"#11#12"}(QAlgoSim.var"#11#12"(), [1], "H")
+UnitaryGate{QubiSim.var"#11#12"}(QubiSim.var"#11#12"(), [1], "H")
 julia> getGate(qc, getStep(qc, 2), 1)
-UnitaryGate{QAlgoSim.var"#41#42"}(QAlgoSim.var"#41#42"(), [1, 2], "CNOT")
+UnitaryGate{QubiSim.var"#41#42"}(QubiSim.var"#41#42"(), [1, 2], "CNOT")
 ```
 """
 function getGate(quantumCircuit::QuantumCircuit, step::UnitaryStep, gateId::Int)
@@ -856,6 +916,17 @@ function getGate(quantumCircuit::QuantumCircuit, step::BernoulliStep, gateId::In
 		throw("The gateId=$(gateId) and cannot be greater than 1 since a BernoulliStep contains only 1 gate.")
 	end
 end
+function getGate(quantumCircuit::QuantumCircuit, step::StochasticStep, gateId::Int)
+	if convertToOneBasedNumbering(quantumCircuit.settings, gateId) == 1
+		return step.gate
+	else
+		throw("The gateId=$(gateId) and cannot be greater than 1 since a StochasticStep contains only 1 gate.")
+	end
+end
+
+
+
+
 
 ######################
 # QuantumProgram
@@ -1154,6 +1225,49 @@ struct BernoulliOperation <: Operation
 	probability::Float64
 end
 
+""" 
+    struct StochasticOperation <: Operation
+
+A stochastic operation represented by a function that generates the unitary operation.
+
+# Type parameters
+- `F <: Function`: The concrete type of the factory function that creates the unitary operation.
+
+# Fields
+- `unitaryOperationFactory::F` — A callable object (typically a closure that captures all the necessary information) that, when invoked, returns a `UnitaryOperation`.
+- `qubits::Qubits` — The qubits this gate operates on.
+- `numberOfQubits::Int` — Total number of qubits used in the program.
+- `accuracyCheckForUnitarity::Float64` — Numerical tolerance for unitarity validation.
+
+# Quantum state evolution
+During execution of the quantum program, `unitaryOperationFactory` is invoked once per shot to generate a unitary operation ``U``. 
+The generated operation is then applied to the quantum state as follows:
+- **Quantum vector state**:  
+    - A pure state ``|ψ⟩`` evolves as: ``|ψ⟩ → U·|ψ⟩``
+- **Quantum density state**:
+    - A density operator ``ρ`` evolves as: ``ρ → U·ρ·U^†``
+
+# See also
+- [`StochasticGate`](@ref)
+- [`Operation`](@ref)
+
+# Example
+Extract the stochastic operation of a stochastic gate for a U₁(λ) unitary operation with random phase rotation angle ``λ`` added to a single-qubit quantum circuit:
+```julia-repl
+julia> qc = createQuantumCircuit(1)
+julia> stochasticGate!(qc, [1], () -> createSingleQubitOperationU1(rand()))
+julia> qp = compileQuantumCircuit(qc)
+julia> getOperation(qp, 1)
+StochasticOperation{var"#13#14"}(var"#13#14"(), [1], 1, 2.220446049250313e-15)
+```
+"""
+struct StochasticOperation{F <: Function} <: Operation
+	unitaryOperationFactory::F
+	qubits::Qubits
+	numberOfQubits::Int
+	accuracyCheckForUnitarity::Float64
+end
+
 """
     getOperation(
 		quantumProgram::QuantumProgram, 
@@ -1169,7 +1283,7 @@ The `Operation` is retrieved using the program’s internal indexing scheme as d
 - `operationId::Int` — The index of the operation to retrieve (1-based or 0-based depending on `settings`).
 
 # Returns
-- `Operation` — A subtype of `Operation`, such as a `UnitaryOperation`, `MeasureOperation`, `MeasureAndForgetOperation`, `QuantumChannelOperation`, or `BernoulliOperation`.
+- `Operation` — A subtype of `Operation`, such as a `UnitaryOperation`, `MeasureOperation`, `MeasureAndForgetOperation`, `QuantumChannelOperation`, `BernoulliOperation`, or `StochasticOperation`.
 
 # See also
 - [`QuantumProgram`](@ref)
@@ -1180,6 +1294,7 @@ The `Operation` is retrieved using the program’s internal indexing scheme as d
 - [`MeasureAndForgetOperation`](@ref)
 - [`QuantumChannelOperation`](@ref)
 - [`BernoulliOperation`](@ref)
+- [`StochasticOperation`](@ref)
 
 # Example
 Extract the first and second operations from a quantum program created from a single-qubit circuit:
@@ -1550,6 +1665,10 @@ function addGate!(quantumCircuit::QuantumCircuit, gate::MeasureGate)
 end
 function addGate!(quantumCircuit::QuantumCircuit, gate::BernoulliGate)
 	push!(quantumCircuit.circuit, BernoulliStep(gate))
+	quantumCircuit.numberOfStepsOnQubits = (length(quantumCircuit.circuit)+1)*ones(Int, quantumCircuit.numberOfQubits)
+end
+function addGate!(quantumCircuit::QuantumCircuit, gate::StochasticGate)
+	push!(quantumCircuit.circuit, StochasticStep(gate))
 	quantumCircuit.numberOfStepsOnQubits = (length(quantumCircuit.circuit)+1)*ones(Int, quantumCircuit.numberOfQubits)
 end
 
@@ -3578,7 +3697,7 @@ Add a **Bernoulli gate** for a Pauli-X operation with probability 0.3 on qubit 1
 julia> qc = createQuantumCircuit(2)
 julia> bernoulliGate!(qc, [1], 0.3, createSingleQubitOperationX())
 julia> getGate(qc, getStep(qc, 1), 1) # first step, first gate
-BernoulliGate{QAlgoSim.var"#129#130"{UnitaryOperation}}(QAlgoSim.var"#129#130"{UnitaryOperation}(UnitaryOperation(ComplexF64[0.0 + 0.0im 1.0 + 0.0im; 1.0 + 0.0im 0.0 + 0.0im])), [1], 0.3)
+BernoulliGate{QubiSim.var"#129#130"{UnitaryOperation}}(QubiSim.var"#129#130"{UnitaryOperation}(UnitaryOperation(ComplexF64[0.0 + 0.0im 1.0 + 0.0im; 1.0 + 0.0im 0.0 + 0.0im])), [1], 0.3)
 ```
 """
 function bernoulliGate!(quantumCircuit::QuantumCircuit, qubits::Qubits, probability::Float64, U::UnitaryOperation; accuracyCheckForUnitarity = 10*eps(1.0))
@@ -3591,6 +3710,63 @@ function bernoulliGate!(quantumCircuit::QuantumCircuit, qubits::Qubits, probabil
 	else
 		throw("U:$U is not unitary")
 	end
+end
+
+""" 
+	stochasticGate!(
+		quantumCircuit::QuantumCircuit, 
+		qubits::Qubits,
+		unitaryOperationFactory::Function; 
+		accuracyCheckForUnitarity = 10*eps(1.0)
+	) -> Nothing
+
+Adds a **Stochastic gate** to `quantumCircuit`, acting on the specified `qubits`.
+The gate uses the user-supplied `unitaryOperationFactory` to generate a unitary operation dynamically during program execution.
+
+For each shot, the stochastic gate:
+
+1. Invokes `unitaryOperationFactory` to generate a unitary operation ``U``.
+2. Checks whether ``U`` satisfies the unitarity condition ``U^†⋅U ≈ I`` within the specified numerical tolerance.
+3. Applies ``U`` to the quantum state.
+
+Under the hood, it creates a `StochasticGate` holding the factory function, and adds it to the circuit.
+During compilation, this factory function is passed on to the `StochasticOperation`.
+The factory function is invoked during execution, once per shot.
+
+# Arguments
+- `quantumCircuit::QuantumCircuit` — The quantum circuit to which the gate is added.
+- `qubits::Qubits` — A collection of qubit indices (interpreted using the circuit’s `settings`) on which the gate is applied.
+- `unitaryOperationFactory::Function` — A callable object (typically a closure that captures all the necessary information) that, when invoked, returns a `UnitaryOperation`.
+- `accuracyCheckForUnitarity::Float64` (optional) — Numerical tolerance for unitarity validation, defaulting to `10 * eps(1.0)`.
+
+# Returns
+- `Nothing` — This function mutates the input `quantumCircuit` by adding the gate in-place.
+
+# Throws
+- A `String` exception if ``U`` is not unitary within the given tolerance.
+
+# See also
+- [`QuantumCircuit`](@ref)
+- [`StochasticGate`](@ref)
+- [`StochasticOperation`](@ref)
+- [`Settings`](@ref)
+- [`Qubits`](@ref)
+
+# Example
+Add a **Stochastic gate** for a U₁(λ) unitary operation with random phase rotation angle ``λ` on qubit 1 to a 2-qubit quantum circuit:
+```julia-repl
+julia> qc = createQuantumCircuit(2)
+julia> stochasticGate!(qc, [1], () -> createSingleQubitOperationU1(rand()))
+julia> getGate(qc, getStep(qc, 1), 1) # first step, first gate
+StochasticGate{var"#15#16"}(var"#15#16"(), [1], 2.220446049250313e-15)
+```
+"""
+function stochasticGate!(quantumCircuit::QuantumCircuit, qubits::Qubits, unitaryOperationFactory::Function; accuracyCheckForUnitarity = 10*eps(1.0))
+	addGate!(quantumCircuit, StochasticGate(
+	    unitaryOperationFactory,
+   		convertToByteIndex(quantumCircuit.settings, quantumCircuit.numberOfQubits, qubits),
+		accuracyCheckForUnitarity
+	))
 end
 
 #
@@ -6343,6 +6519,10 @@ function compileStep!(program::QuantumProgram, step::BernoulliStep, numberOfQubi
     push!(program.program, BernoulliOperation(UStep.U, step.gate.probability))
 end
 
+function compileStep!(program::QuantumProgram, step::StochasticStep, numberOfQubits::Int, optimize::Bool)
+    push!(program.program, StochasticOperation(step.gate.unitaryOperationFactory, step.gate.qubits, numberOfQubits, step.gate.accuracyCheckForUnitarity))
+end
+
 function compileStep!(program::QuantumProgram, step::Step, numberOfQubits::Int, optimize::Bool)
     error("Unsupported quantum step type: $(typeof(step))")
 end
@@ -6729,6 +6909,27 @@ function applyOperationOnQubitState(bernoulliOperation::BernoulliOperation, dens
 		return DensityState(bernoulliOperation.U * cache.cM1)
 	else
 		return densityState
+	end
+end
+
+function applyOperationOnQubitState(stochasticOperation::StochasticOperation, vectorState::VectorState, cache::Cache)
+	UStep = stochasticOperation.unitaryOperationFactory()
+	if all(abs.(UStep.U'*UStep.U-ComplexMatrix(I,size(UStep.U))).<stochasticOperation.accuracyCheckForUnitarity)
+    	UStep = moveNQubitOperationToListOfQubits(UStep, stochasticOperation.qubits, stochasticOperation.numberOfQubits)
+		return VectorState(UStep.U * vectorState.q)
+	else
+		throw("U:$UStep is not unitary")
+	end
+end
+
+function applyOperationOnQubitState(stochasticOperation::StochasticOperation, densityState::DensityState, cache::Cache)
+	UStep = stochasticOperation.unitaryOperationFactory()
+	if all(abs.(UStep.U'*UStep.U-ComplexMatrix(I,size(UStep.U))).<stochasticOperation.accuracyCheckForUnitarity)
+    	UStep = moveNQubitOperationToListOfQubits(UStep, stochasticOperation.qubits, stochasticOperation.numberOfQubits)
+		mul!(cache.cM1, densityState.rho, (UStep.U'))
+		return DensityState(UStep.U * cache.cM1)
+	else
+		throw("U:$UStep is not unitary")
 	end
 end
 

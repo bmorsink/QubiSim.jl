@@ -10,6 +10,8 @@ QubiSim supports two types of states: state vectors ([`VectorState`](@ref)) and 
 
 For Bernoulli operations, during program execution, for each individual step, the [`UnitaryOperation`](@ref) contained in each [`BernoulliOperation`](@ref) is applied with the specified probability; otherwise, the qubit state is left unchanged.
 
+During program execution, each [`StochasticOperation`](@ref) invokes its factory function once per shot to generate a [`UnitaryOperation`](@ref), which is then applied to the quantum state.
+
 A given [`QuantumOutput`](@ref) allows you to retrieve specific data as follows: use [`getState`](@ref) to access a particular state across all shots, [`getShot`](@ref) to access a specific shot across all states, and [`getStateShot`](@ref) to retrieve a specific state and shot combination.
 
 With [`convertVectorStateToDensityState`](@ref) you can convert a [`VectorState`](@ref) into its corresponding pure [`DensityState`](@ref). The function [`createByteIndexVector`](@ref) facilitates easy creation of the right initial qubit state in [`createInitialQubitState`](@ref). With the functions [`createDoubleQubitWernerDensityState`](@ref) and [`createSingleQubitBlochDensityState`](@ref) you can create dedicated Werner and Bloch density states, respectively.

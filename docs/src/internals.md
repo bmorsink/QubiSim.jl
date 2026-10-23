@@ -84,6 +84,25 @@ bernoulliGate!(quantumCircuit, qubits, probability, UnitaryOperation)
              └── update bookkeeping such that any next new gate insertion invokes the need for a new step
 ```
 
+### How QubiSim adds a stochastic gate to a quantum circuit  
+
+- User calls `stochasticGate!` with a circuit, qubits, factory function that generates a unitary operation.
+- Internally, this:
+  - Computes the byte indices for the target qubits.
+  - Wraps the byte indices, the factory function that will generate the unitary operation, into a `StochasticGate`.
+  - Calls `addGate!` to insert the gate into the circuit.
+    - Places the gate in a new `StochasticStep` and appends it to the circuit
+    - Updates (`numberOfStepsOnQubits`) bookkeeping.
+- The factory function later produces the actual unitary operation when needed.
+
+```julia-repl
+stochasticGate!(quantumCircuit, qubits, unitaryOperationFactory, accuracyCheckForUnitarity)
+ └── addGate!(quantumCircuit, StochasticGate(unitaryOperationFactory, accuracyCheckForUnitarity, convertToByteIndex(..., qubits)))
+       └── addGate!(…, gate::StochasticGate)
+             ├── push!(circuit, StochasticStep(gate))
+             └── update bookkeeping such that any next new gate insertion invokes the need for a new step
+```
+
 
 ## Compilation
 
@@ -159,6 +178,14 @@ compileStep!(…, step::BernoulliStep, …)
  ├── UGate = gate.unitaryOperationFactory()
  ├── moveNQubitOperationToListOfQubits(UGate, gate.qubits, numberOfQubits)
  └── push!(program.program, BernoulliOperation(UGate, probability))
+```
+
+  - If `compileStep!` is called with a `StochasticStep`:
+    - Adds a `StochasticOperation` to the program, passing along the unitaryOperationFactory and accuracyCheckForUnitarity from the `StochasticGate`.
+
+```julia-repl
+compileStep!(…, step::StochasticStep, …)
+ └── push!(program.program, StochasticOperation(gate.unitaryOperationFactory, gate.accuracyCheckForUnitarity))
 ```
 
 
@@ -277,6 +304,25 @@ applyOperationOnQubitState(bernoulliOperation::BernoulliOperation, densityState:
  └── if rand() <= bernoulliOperation.probability then DensityState(bernoulliOperation.U * densityState.ρ * bernoulliOperation.U†) else densityState
 ```
 
+  - If `applyOperationOnQubitState!` is called with a `StochasticOperation`, the `StochasticOperation.unitaryOperationFactory` is invoked to generate a UnitaryOperation ``U``. The generated operation is checked for unitarity using `StochasticOperation.accuracyCheckForUnitarity`. If the check passes, the operation is applied to the quantum state:
+    - `VectorState`: multiplies the state vector by the unitary matrix.
+    - `DensityState`: performs conjugation by the unitary matrix.
+  - If the unitarity check fails, an exception is thrown.
+
+```julia-repl
+applyOperationOnQubitState(stochasticOperation::StochasticOperation, vectorState::VectorState)
+ └── U = stochasticOperation.unitaryOperationFactory()
+     └── check unitarity of U using stochasticOperation.accuracyCheckForUnitarity
+         ├── if valid: VectorState(U * vectorState.q)
+         └── otherwise: throw an exception
+
+applyOperationOnQubitState(stochasticOperation::StochasticOperation, densityState::DensityState)
+ └── U = stochasticOperation.unitaryOperationFactory()
+     └── check unitarity of U using stochasticOperation.accuracyCheckForUnitarity
+         ├── if valid: DensityState(U * densityState.ρ * U†)
+         └── otherwise: throw an exception
+```
+
 
 ## Extensibility
 
@@ -300,6 +346,7 @@ QubiSim uses multiple dispatch in several parts of the codebase, making it strai
   - `function newGate!`
   - `function addGate!`
   - `function getGate`
+  - `function qubits`
   - `function compileStep!`
   - `struct NewOperation <: Operation`
   - `function applyOperationOnQubitState(newOperation::NewOperation, densityState::DensityState)`

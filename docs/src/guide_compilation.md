@@ -4,7 +4,7 @@ Given a [`QuantumCircuit`](@ref), the compilation with [`compileQuantumCircuit`]
 
 ![Program](AbstractProgram.jpg)
 
-QubiSim supports five types of operations: [`UnitaryOperation`](@ref), [`MeasureOperation`](@ref), [`MeasureAndForgetOperation`](@ref), [`QuantumChannelOperation`](@ref) and [`BernoulliOperation`](@ref). In steps with unitary gates, the compilation process constructs a single [`UnitaryOperation`](@ref) by taking the [`tensorProduct`](@ref) of the individual unitary matrices for each gate in that step.
+QubiSim supports five types of operations: [`UnitaryOperation`](@ref), [`MeasureOperation`](@ref), [`MeasureAndForgetOperation`](@ref), [`QuantumChannelOperation`](@ref), [`BernoulliOperation`](@ref) and [`StochasticOperation`](@ref). In steps with unitary gates, the compilation process constructs a single [`UnitaryOperation`](@ref) by taking the [`tensorProduct`](@ref) of the individual unitary matrices for each gate in that step.
 
 QubiSim also offers an optimization feature: calling [`compileQuantumCircuit`](@ref) with the `optimizeNumberOfSteps` option set to true, consecutive steps containing only unitary gates can be merged (fused) into one operation. This combined operation is created by sequentially multiplying the unitary matrices, thereby reducing the number of operations in the final quantum program for potentially more efficient execution.
 
@@ -15,6 +15,8 @@ When a step includes measure gates, the compiler creates a [`MeasureOperation`](
 In steps with a quantum channel gate, the compiler creates a [`QuantumChannelOperation`](@ref) that holds the [`KrausOperators`](@ref).
 
 For steps containing a Bernoulli gate, the compiler creates a [`BernoulliOperation`](@ref) that stores the [`UnitaryOperation`](@ref) for the unitary gate and the probability of applying it during program execution.
+
+For steps containing a stochastic gate, the compiler creates a [`StochasticOperation`](@ref) that stores the factory function used to generate a [`UnitaryOperation`](@ref) during program execution. The factory function is invoked once per shot, and the generated unitary operation is applied to the quantum state.
 
 QubiSim provides functions to create various operations:
 

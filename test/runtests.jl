@@ -25,6 +25,14 @@ function toggleQubitOrdeningFor(A::DensityState)
 	# return DensityState(A.rho[swapList, swapList], [], [], [], [])
 end
 
+function bernoulliXGate()
+    if rand() < 0.3
+        createSingleQubitOperationX()
+    else
+        createSingleQubitOperationId()
+    end
+end
+
 @testset "testing" verbose = true begin
 
     @testset "Qubit index conversions" verbose = true begin
@@ -792,6 +800,31 @@ end
             p=0.3
             qc=createQuantumCircuit(1)
             bernoulliGate!(qc, [1], p, createSingleQubitOperationX())
+            measureGate!(qc, [1])
+            qp=compileQuantumCircuit(qc)
+            iqs=createInitialQubitState(vector, [1. 0.])
+            qo=runQuantumProgram(qp, iqs, n)
+            nrOfBitFlipped=sum([qo.output[3,k].measured.outcome for k in 1:n])
+
+            @test n*p-3*sqrt(n*p*(1-p)) < nrOfBitFlipped
+            @test nrOfBitFlipped < n*p+3*sqrt(n*p*(1-p))
+        end
+    end
+
+    @testset "Stochastic gate" verbose = true begin
+        @testset "Program: Big endian 1 qubit Stochastic-gate on qubit 1" begin
+            qc=createQuantumCircuit(1)
+            stochasticGate!(qc, [1], bernoulliXGate)
+            qp=compileQuantumCircuit(qc; optimizeNumberOfSteps=true)
+
+            @test qp.program[1] isa StochasticOperation
+            @test qp.program[1].unitaryOperationFactory == bernoulliXGate
+        end
+        @testset "Output: Big endian 1 qubit Stochastic-gate on qubit 1" begin
+            n=1000
+            p=0.3 # keep fixed since bernoulliXGate uses 0.3
+            qc=createQuantumCircuit(1)
+            stochasticGate!(qc, [1], bernoulliXGate)
             measureGate!(qc, [1])
             qp=compileQuantumCircuit(qc)
             iqs=createInitialQubitState(vector, [1. 0.])
@@ -2275,7 +2308,7 @@ end
             quantumChannelGate!(qc, [1], generateKrausOperatorsForBitFlipChannel(p))
             qp = compileQuantumCircuit(qc; optimizeNumberOfSteps=true)
             theta = pi/4
-            phi = 0
+            phi = pi/3
             iqs = createInitialQubitState(density, [[1., [theta phi]]], blochRepresentation=true)
             qo1 = runQuantumProgram(qp, iqs, 1)
 

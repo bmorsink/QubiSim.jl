@@ -1,6 +1,6 @@
 # How you define the quantum circuit
 
-In QubiSim, a [`QuantumCircuit`](@ref) is made up of a collection of qubits and a sequence of steps. Each step represents an abstract slice of time during which certain operations occur. In this context, an "abstract time slice" refers to a conceptual moment in the quantum circuit's evolution, rather than a specific or measurable duration. During each step, a set of quantum gates is applied to the qubits simultaneously, meaning all the gates within that step operate in parallel, but only within that abstract moment. Each gate in a step acts on a specific subset of the qubits, and QubiSim supports four types of gates: [`UnitaryGate`](@ref), [`MeasureGate`](@ref), [`QuantumChannelGate`](@ref) and a [`BernoulliGate`](@ref). However, all gates in a single step must belong to the same category; different types cannot be mixed within the same step. The package provides a wide range of built-in unitary gate options for users to choose from.
+In QubiSim, a [`QuantumCircuit`](@ref) is made up of a collection of qubits and a sequence of steps. Each step represents an abstract slice of time during which certain operations occur. In this context, an "abstract time slice" refers to a conceptual moment in the quantum circuit's evolution, rather than a specific or measurable duration. During each step, a set of quantum gates is applied to the qubits simultaneously, meaning all the gates within that step operate in parallel, but only within that abstract moment. Each gate in a step acts on a specific subset of the qubits, and QubiSim supports four types of gates: [`UnitaryGate`](@ref), [`MeasureGate`](@ref), [`QuantumChannelGate`](@ref), [`BernoulliGate`](@ref) and a [`StochasticGate`](@ref). However, all gates in a single step must belong to the same category; different types cannot be mixed within the same step. The package provides a wide range of built-in unitary gate options for users to choose from.
 
 ![Circuit](AbstractCircuit.jpg)
 
@@ -25,6 +25,8 @@ Use [`measureGate!`](@ref) to add a [`MeasureGate`](@ref). QubiSim supports two 
 Use [`quantumChannelGate!`](@ref) to add a [`QuantumChannelGate`](@ref). The quantum channel gate is defined by the [`KrausOperators`](@ref). With [`generateKrausOperatorsForDepolarizingChannel`](@ref), [`generateKrausOperatorsForPhaseDampingChannel`](@ref), [`generateKrausOperatorsForAmplitudeDampingChannel`](@ref) and [`generateKrausOperatorsForBitFlipChannel`](@ref) you can create the Kraus operators for a **depolarizing quantum channel**, **phase damping quantum channel**, **amplitude damping quantum channel** and **bit-flip quantum channel**, respectively.
 
 Use [`bernoulliGate!`](@ref) to add a [`BernoulliGate`](@ref). A Bernoulli gate is essentially a unitary gate with an additional probabilistic behavior that is evaluated during program execution.
+
+Use [`stochasticGate!`](@ref) to add a [`StochasticGate`](@ref). A stochastic gate generates a unitary operation dynamically during program execution by invoking a user-supplied factory function once per shot.
 
 A [`barrier!`](@ref) can be added to the [`QuantumCircuit`](@ref) to visually and functionally separate different sections (steps) of the circuit. They are primarily used for clarity and control over gate execution order in the circuit, without affecting the quantum state.
 
