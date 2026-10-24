@@ -645,7 +645,7 @@ This struct is parametric, allowing it to hold a type-stable function that gener
 # See also
 - [`Gate`](@ref)
 - [`UnitaryOperation`](@ref)
-- [`StoachasticOperation`](@ref)
+- [`StochasticOperation`](@ref)
 - [`Qubits`](@ref)
 
 # Example
@@ -741,7 +741,7 @@ end
 """
     struct StochasticStep <: Step
 
-Represents a stoachastic step in a quantum circuit, consisting of a single stochastic gate.
+Represents a stochastic step in a quantum circuit, consisting of a single stochastic gate.
 
 # Fields
 - `gate::StochasticGate` — The stochastic gate used in this `Step`.
@@ -3753,7 +3753,7 @@ The factory function is invoked during execution, once per shot.
 - [`Qubits`](@ref)
 
 # Example
-Add a **Stochastic gate** for a U₁(λ) unitary operation with random phase rotation angle ``λ` on qubit 1 to a 2-qubit quantum circuit:
+Add a **Stochastic gate** for a U₁(λ) unitary operation with random phase rotation angle ``λ`` on qubit 1 to a 2-qubit quantum circuit:
 ```julia-repl
 julia> qc = createQuantumCircuit(2)
 julia> stochasticGate!(qc, [1], () -> createSingleQubitOperationU1(rand()))
